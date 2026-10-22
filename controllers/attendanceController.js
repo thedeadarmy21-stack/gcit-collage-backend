@@ -206,7 +206,7 @@ const askAI = async (req, res) => {
           content: question
         }
       ],
-      model: "llama3-8b-8192", // Fast aur smart model
+     model: "llama-3.1-8b-instant",
       temperature: 0.5,
       max_tokens: 250,
     });
