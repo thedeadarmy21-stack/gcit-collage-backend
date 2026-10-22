@@ -152,62 +152,71 @@ const getLowAttendanceStudents = async (req, res) => {
   }
 };
 
-// 🤖 @desc    AI Chatbot (Voice & Text) - Groq Integration
+// 🤖 @desc    AI Chatbot (College Mode + General Mode)
 const askAI = async (req, res) => {
   try {
-    const { question } = req.body;
+    // Frontend se 'question' ke saath 'mode' (college ya general) aayega
+    const { question, mode } = req.body; 
     const schoolName = req.teacher.schoolName;
     const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
 
     if (!question) return res.status(400).json({ success: false, message: 'Question is required' });
 
-    const totalStudents = await Student.countDocuments({ schoolName, isActive: true });
-    const presentToday = await Attendance.countDocuments({ teacherId: req.teacher._id, date: dateStr });
-    const absentToday = totalStudents - presentToday;
-    const studentsList = await Student.find({ schoolName, isActive: true }).select('name rollNumber className fatherName');
-    const attendanceToday = await Attendance.find({ teacherId: req.teacher._id, date: dateStr }).populate('studentId', 'name rollNumber className');
+    let dbContext = "";
+    
+    // Agar College Mode hai, tabhi data fetch karenge
+    if (mode === 'college') {
+      const totalStudents = await Student.countDocuments({ schoolName, isActive: true });
+      const presentToday = await Attendance.countDocuments({ teacherId: req.teacher._id, date: dateStr });
+      const absentToday = totalStudents - presentToday;
+      const studentsList = await Student.find({ schoolName, isActive: true }).select('name rollNumber className fatherName');
+      const attendanceToday = await Attendance.find({ teacherId: req.teacher._id, date: dateStr }).populate('studentId', 'name rollNumber className');
 
-    const dbContext = `
-      School Name: ${schoolName}
-      Aaj ki Date: ${dateStr}
-      Total Students: ${totalStudents}
-      Aaj Present: ${presentToday}
-      Aaj Absent: ${absentToday}
-      
-      --- PURA STUDENTS DATA ---
-      ${studentsList.map(s => `Name: ${s.name}, Roll: ${s.rollNumber}, Class: ${s.className}, Father: ${s.fatherName}`).join('\n')}
-      
-      --- AAJ KI ATTENDANCE ---
-      ${attendanceToday.map(a => `Name: ${a.studentId?.name}, Time: ${a.timeIn}, Status: ${a.status}`).join('\n')}
-    `;
+      dbContext = `
+        School Name: ${schoolName}
+        Aaj ki Date: ${dateStr}
+        Total Students: ${totalStudents}
+        Aaj Present: ${presentToday}
+        Aaj Absent: ${absentToday}
+        
+        --- PURA STUDENTS DATA (Name, Roll, Class, Father) ---
+        ${studentsList.map(s => `Name: ${s.name}, Roll: ${s.rollNumber}, Class: ${s.className}, Father: ${s.fatherName}`).join('\n')}
+        
+        --- AAJ KI ATTENDANCE (Jo aaye hain) ---
+        ${attendanceToday.map(a => `Name: ${a.studentId?.name}, Time: ${a.timeIn}, Status: ${a.status}`).join('\n')}
+      `;
+    }
 
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
     
+    let systemPrompt = "";
+
+    // Mode ke hisaab se AI ko bolo ki kya karna hai
+    if (mode === 'general') {
+      systemPrompt = `Tum ek smart aur friendly AI assistant ho. Tumhara naam 'GCIT AI' hai. 
+      Tumhe Hinglish (Hindi + English mix, but only English alphabets A-Z) me jawab dena hai.
+      Tum kisi bhi topic par general knowledge ka jawab de sakte ho, bilkul ChatGPT ki tarah. 
+      Jawab professional aur helpful hona chahiye. Hindi script use mat karna.`;
+    } else {
+      systemPrompt = `Tum GCIT Collage ke ek smart, friendly aur professional AI assistant ho. 
+      Tumhe Hinglish (only English alphabets A-Z) me jawab dena hai.
+      Tumhe SIRF aur SIRF niche diye gaye DATABASE ke data ke basis par jawab dena hai.
+      Data me jo nahi hai, uske baare me politely bata do ki "Ye data mere paas available nahi hai".
+      Hindi script (jaise: नमस्ते) ka use BILKUL NAHI karna.
+      
+      --- DATABASE CONTEXT ---
+      ${dbContext}
+      ------------------------`;
+    }
+
     const chatCompletion = await groq.chat.completions.create({
       messages: [
-        {
-          role: "system",
-          content: `Tum GCIT Collage ke ek smart, friendly aur professional AI assistant ho. Tumhara naam 'GCIT AI' hai. 
-          
-          STRICT RULES:
-          1. Tumhe Hinglish (Hindi + English mix) me baat karni hai bilkul ek dost ki tarah.
-          2. Jawab dene ke liye SIRF English alphabets ka use karna (jaise: "Bhai, aaj 5 students aaye hain"). 
-          3. Hindi script (जैसे: नमस्ते, आज, कितने) ka use BILKUL NAHI karna. Sirf A-Z alphabets use karna.
-          4. Tumhare paas school ka pura data hai. Jab koi kuch bhi poochhe, toh niche diye gaye data me se dhoondh kar sahi jawab do.
-          5. Data me jo nahi hai, uske baare me politely bata do ki "Ye data mere paas available nahi hai".
-          
-          --- DATABASE CONTEXT ---
-          ${dbContext}
-          ------------------------`
-        },
-        {
-          role: "user",
-          content: question
-        }
+        { role: "system", content: systemPrompt },
+        { role: "user", content: question }
       ],
       model: "openai/gpt-oss-20b",
-      temperature: 0.3,
-      max_tokens: 300,
+      temperature: 0.4,
+      max_tokens: 400,
     });
 
     const aiResponse = chatCompletion.choices[0]?.message?.content || "Bhai, mujhe samajh nahi aaya. Dobara poocho.";
