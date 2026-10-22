@@ -161,18 +161,12 @@ const askAI = async (req, res) => {
 
     if (!question) return res.status(400).json({ success: false, message: 'Question is required' });
 
-    // 1. Database se pura data nikalna (Without limit)
     const totalStudents = await Student.countDocuments({ schoolName, isActive: true });
     const presentToday = await Attendance.countDocuments({ teacherId: req.teacher._id, date: dateStr });
     const absentToday = totalStudents - presentToday;
-    
-    // Saare students ka data (naam, class, roll, father)
     const studentsList = await Student.find({ schoolName, isActive: true }).select('name rollNumber className fatherName');
-    
-    // Aaj ki attendance (kaun present hai, kaun late hai)
     const attendanceToday = await Attendance.find({ teacherId: req.teacher._id, date: dateStr }).populate('studentId', 'name rollNumber className');
 
-    // Data string format karna AI ke liye
     const dbContext = `
       School Name: ${schoolName}
       Aaj ki Date: ${dateStr}
@@ -187,7 +181,6 @@ const askAI = async (req, res) => {
       ${attendanceToday.map(a => `Name: ${a.studentId?.name}, Time: ${a.timeIn}, Status: ${a.status}`).join('\n')}
     `;
 
-    // 2. Groq AI ko call karna
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
     
     const chatCompletion = await groq.chat.completions.create({
@@ -195,10 +188,13 @@ const askAI = async (req, res) => {
         {
           role: "system",
           content: `Tum GCIT Collage ke ek smart, friendly aur professional AI assistant ho. Tumhara naam 'GCIT AI' hai. 
-          Tumhe Hinglish (Hindi + English mix) me baat karni hai bilkul ek dost ki tarah.
-          Tumhare paas school ka pura data hai (Total students, sabhi students ki list, aaj ki attendance).
-          Jab koi kuch bhi poochhe (jaise: naya student kaun aaya, aaj kitne absent hain, ya kisi specific student ka data), toh niche diye gaye data me se dhoondh kar sahi jawab do.
-          Data me jo nahi hai, uske baare me guess mat karo, balki politely bata do ki "Ye data mere paas available nahi hai".
+          
+          STRICT RULES:
+          1. Tumhe Hinglish (Hindi + English mix) me baat karni hai bilkul ek dost ki tarah.
+          2. Jawab dene ke liye sirf English alphabets ka use karna (jaise: "Bhai, aaj 5 students aaye hain"). Hindi script (जैसे: नमस्ते, आज, कितने) ka use bilkul nahi karna.
+          3. Tumhare paas school ka pura data hai (Total students, sabhi students ki list, aaj ki attendance).
+          4. Jab koi kuch bhi poochhe, toh niche diye gaye data me se dhoondh kar sahi jawab do.
+          5. Data me jo nahi hai, uske baare me politely bata do ki "Ye data mere paas available nahi hai".
           
           --- DATABASE CONTEXT ---
           ${dbContext}
@@ -210,7 +206,7 @@ const askAI = async (req, res) => {
         }
       ],
       model: "openai/gpt-oss-20b",
-      temperature: 0.3, // Temperature kam kiya taaki AI apni marzi se kuch na bole
+      temperature: 0.3,
       max_tokens: 300,
     });
 
