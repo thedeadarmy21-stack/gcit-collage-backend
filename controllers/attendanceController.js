@@ -155,7 +155,6 @@ const getLowAttendanceStudents = async (req, res) => {
 // 🤖 @desc    AI Chatbot (College Mode + General Mode)
 const askAI = async (req, res) => {
   try {
-    // Frontend se 'question' ke saath 'mode' (college ya general) aayega
     const { question, mode } = req.body; 
     const schoolName = req.teacher.schoolName;
     const dateStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Karachi' });
@@ -164,7 +163,6 @@ const askAI = async (req, res) => {
 
     let dbContext = "";
     
-    // Agar College Mode hai, tabhi data fetch karenge
     if (mode === 'college') {
       const totalStudents = await Student.countDocuments({ schoolName, isActive: true });
       const presentToday = await Attendance.countDocuments({ teacherId: req.teacher._id, date: dateStr });
@@ -191,7 +189,6 @@ const askAI = async (req, res) => {
     
     let systemPrompt = "";
 
-    // Mode ke hisaab se AI ko bolo ki kya karna hai
     if (mode === 'general') {
       systemPrompt = `Tum ek smart aur friendly AI assistant ho. Tumhara naam 'GCIT AI' hai. 
       Tumhe Hinglish (Hindi + English mix, but only English alphabets A-Z) me jawab dena hai.
@@ -228,4 +225,34 @@ const askAI = async (req, res) => {
   }
 };
 
-module.exports = { markAttendance, getTodayAttendanceCount, getDashboardStats, getClassWiseStats, markAbsentees, getLowAttendanceStudents, askAI };
+// 🚀 @desc    Database se saari unique classes nikaalo (Admin ne jo bhi add ki hain)
+const getUniqueClasses = async (req, res) => {
+  try {
+    const schoolName = req.teacher.schoolName;
+    const classes = await Student.distinct('className', { schoolName, isActive: true });
+    
+    // Sorting: Pehle numbers, phir alphabets
+    classes.sort((a, b) => {
+      const numA = parseInt(a);
+      const numB = parseInt(b);
+      if (!isNaN(numA) && !isNaN(numB)) return numA - numB;
+      return a.localeCompare(b);
+    });
+
+    res.status(200).json({ success: true, classes });
+  } catch (error) {
+    console.error('Class Fetch Error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+module.exports = { 
+  markAttendance, 
+  getTodayAttendanceCount, 
+  getDashboardStats, 
+  getClassWiseStats, 
+  markAbsentees, 
+  getLowAttendanceStudents, 
+  askAI,
+  getUniqueClasses
+};

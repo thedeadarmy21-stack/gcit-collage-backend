@@ -7,7 +7,8 @@ const {
   getClassWiseStats,
   markAbsentees,
   getLowAttendanceStudents,
-  askAI // 👈 Naya import
+  askAI,
+  getUniqueClasses // 👈 Naya import
 } = require('../controllers/attendanceController');
 const { protect } = require('../middleware/authMiddleware');
 
@@ -18,7 +19,10 @@ router.get('/class-stats', protect, getClassWiseStats);
 router.post('/mark-absent', protect, markAbsentees);
 router.get('/low-attendance', protect, getLowAttendanceStudents);
 
-// 🚀 NAYA ROUTE: AI Chatbot
+// 🤖 AI & Voice Routes
 router.post('/ask-ai', protect, askAI);
+
+// 🚀 NAYA ROUTE: Dynamic Classes
+router.get('/classes', protect, getUniqueClasses);
 
 module.exports = router;
