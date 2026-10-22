@@ -1,7 +1,7 @@
 const Student = require('../models/Student');
 const Attendance = require('../models/Attendance');
 const { sendWhatsAppMessage } = require('../utils/whatsappSender');
-const { Groq } = require('groq-sdk'); // 👈 Groq Import kiya
+const { Groq } = require('groq-sdk');
 
 // @desc    Student ka QR scan karke attendance lagao
 const markAttendance = async (req, res) => {
@@ -161,13 +161,15 @@ const askAI = async (req, res) => {
 
     if (!question) return res.status(400).json({ success: false, message: 'Question is required' });
 
-    // 1. Database se data nikalna
+    // 1. Database se pura data nikalna (Without limit)
     const totalStudents = await Student.countDocuments({ schoolName, isActive: true });
     const presentToday = await Attendance.countDocuments({ teacherId: req.teacher._id, date: dateStr });
     const absentToday = totalStudents - presentToday;
     
-    // Recent students list (limit 20 for context)
-    const studentsList = await Student.find({ schoolName, isActive: true }).limit(20).select('name rollNumber className fatherName');
+    // Saare students ka data (naam, class, roll, father)
+    const studentsList = await Student.find({ schoolName, isActive: true }).select('name rollNumber className fatherName');
+    
+    // Aaj ki attendance (kaun present hai, kaun late hai)
     const attendanceToday = await Attendance.find({ teacherId: req.teacher._id, date: dateStr }).populate('studentId', 'name rollNumber className');
 
     // Data string format karna AI ke liye
@@ -178,10 +180,10 @@ const askAI = async (req, res) => {
       Aaj Present: ${presentToday}
       Aaj Absent: ${absentToday}
       
-      Recent Students Data:
+      --- PURA STUDENTS DATA (Name, Roll, Class, Father) ---
       ${studentsList.map(s => `Name: ${s.name}, Roll: ${s.rollNumber}, Class: ${s.className}, Father: ${s.fatherName}`).join('\n')}
       
-      Aaj ki Attendance (Present list):
+      --- AAJ KI ATTENDANCE (Jo aaye hain) ---
       ${attendanceToday.map(a => `Name: ${a.studentId?.name}, Time: ${a.timeIn}, Status: ${a.status}`).join('\n')}
     `;
 
@@ -193,9 +195,10 @@ const askAI = async (req, res) => {
         {
           role: "system",
           content: `Tum GCIT Collage ke ek smart, friendly aur professional AI assistant ho. Tumhara naam 'GCIT AI' hai. 
-          Tumhe Hinglish (Hindi + English mix) me baat karni hai bilkul ek dost ki tarah. 
-          Tumhe sirf aur sirf niche diye gaye DATA ke basis par jawab dena hai. Kuch bhi apni marzi se mat banao.
-          Agar koi poochta hai ki aaj kitne aaye hain, ya kisi specific student ka kya haal hai, toh data se dhoondh kar batao.
+          Tumhe Hinglish (Hindi + English mix) me baat karni hai bilkul ek dost ki tarah.
+          Tumhare paas school ka pura data hai (Total students, sabhi students ki list, aaj ki attendance).
+          Jab koi kuch bhi poochhe (jaise: naya student kaun aaya, aaj kitne absent hain, ya kisi specific student ka data), toh niche diye gaye data me se dhoondh kar sahi jawab do.
+          Data me jo nahi hai, uske baare me guess mat karo, balki politely bata do ki "Ye data mere paas available nahi hai".
           
           --- DATABASE CONTEXT ---
           ${dbContext}
@@ -206,9 +209,9 @@ const askAI = async (req, res) => {
           content: question
         }
       ],
-     model: "openai/gpt-oss-20b",
-      temperature: 0.5,
-      max_tokens: 250,
+      model: "openai/gpt-oss-20b",
+      temperature: 0.3, // Temperature kam kiya taaki AI apni marzi se kuch na bole
+      max_tokens: 300,
     });
 
     const aiResponse = chatCompletion.choices[0]?.message?.content || "Bhai, mujhe samajh nahi aaya. Dobara poocho.";
