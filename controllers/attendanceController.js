@@ -223,21 +223,22 @@ const generateVoice = async (req, res) => {
     const { text } = req.body;
     if (!text) return res.status(400).json({ success: false, message: 'Text is required' });
 
-    // Microsoft Edge ki Natural Female Voice (Swara - Hindi) use kar rahe hain
+    // Microsoft Edge ki Natural Female Voice (Swara - Hindi)
     const tts = new EdgeTTS(text, "hi-IN-SwaraNeural", {
-      rate: "-5%", // Thoda slow for natural human feel
-      pitch: "+2Hz" // Slight high pitch for friendly tone
+      rate: "-5%", 
+      pitch: "+2Hz"
     });
 
-    // Audio buffer generate karo
-    const audioBuffer = await tts.synthesize();
+    // ✅ SAHI TARIKA: result.audio ko arrayBuffer mein convert karo
+    const result = await tts.synthesize();
+    const audioBuffer = Buffer.from(await result.audio.arrayBuffer());
     
     // Frontend ko MP3 file bhej do
     res.set({
       'Content-Type': 'audio/mpeg',
       'Content-Length': audioBuffer.byteLength
     });
-    res.send(Buffer.from(audioBuffer));
+    res.send(audioBuffer);
 
   } catch (error) {
     console.error('TTS Error:', error);
