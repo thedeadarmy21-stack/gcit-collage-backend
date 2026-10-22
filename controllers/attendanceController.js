@@ -206,7 +206,7 @@ const askAI = async (req, res) => {
           content: question
         }
       ],
-     model: "llama-3.1-8b-instant",
+     model: "openai/gpt-oss-20b",
       temperature: 0.5,
       max_tokens: 250,
     });
