@@ -174,10 +174,10 @@ const askAI = async (req, res) => {
       Aaj Present: ${presentToday}
       Aaj Absent: ${absentToday}
       
-      --- PURA STUDENTS DATA (Name, Roll, Class, Father) ---
+      --- PURA STUDENTS DATA ---
       ${studentsList.map(s => `Name: ${s.name}, Roll: ${s.rollNumber}, Class: ${s.className}, Father: ${s.fatherName}`).join('\n')}
       
-      --- AAJ KI ATTENDANCE (Jo aaye hain) ---
+      --- AAJ KI ATTENDANCE ---
       ${attendanceToday.map(a => `Name: ${a.studentId?.name}, Time: ${a.timeIn}, Status: ${a.status}`).join('\n')}
     `;
 
@@ -191,9 +191,9 @@ const askAI = async (req, res) => {
           
           STRICT RULES:
           1. Tumhe Hinglish (Hindi + English mix) me baat karni hai bilkul ek dost ki tarah.
-          2. Jawab dene ke liye sirf English alphabets ka use karna (jaise: "Bhai, aaj 5 students aaye hain"). Hindi script (जैसे: नमस्ते, आज, कितने) ka use bilkul nahi karna.
-          3. Tumhare paas school ka pura data hai (Total students, sabhi students ki list, aaj ki attendance).
-          4. Jab koi kuch bhi poochhe, toh niche diye gaye data me se dhoondh kar sahi jawab do.
+          2. Jawab dene ke liye SIRF English alphabets ka use karna (jaise: "Bhai, aaj 5 students aaye hain"). 
+          3. Hindi script (जैसे: नमस्ते, आज, कितने) ka use BILKUL NAHI karna. Sirf A-Z alphabets use karna.
+          4. Tumhare paas school ka pura data hai. Jab koi kuch bhi poochhe, toh niche diye gaye data me se dhoondh kar sahi jawab do.
           5. Data me jo nahi hai, uske baare me politely bata do ki "Ye data mere paas available nahi hai".
           
           --- DATABASE CONTEXT ---
