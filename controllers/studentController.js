@@ -2,10 +2,10 @@ const Student = require('../models/Student');
 const Attendance = require('../models/Attendance');
 const { generateQRId, generateQRImage } = require('../utils/qrGenerator');
 
-// @desc    Naya student add karo
+// @desc    Naya student add karo (Photo ke saath)
 const addStudent = async (req, res) => {
   try {
-    const { name, rollNumber, className, section, fatherName, fatherWhatsApp, fatherEmail } = req.body;
+    const { name, rollNumber, className, section, fatherName, fatherWhatsApp, fatherEmail, photoBase64 } = req.body;
 
     if (!name || !rollNumber || !className || !fatherName || !fatherEmail) {
       return res.status(400).json({ success: false, message: 'Please provide all required fields' });
@@ -19,6 +19,7 @@ const addStudent = async (req, res) => {
     const student = await Student.create({
       name, rollNumber, className, section: section || 'A', fatherName,
       fatherWhatsApp: fatherWhatsApp || '', fatherEmail, qrCode: qrId, schoolName: req.teacher.schoolName,
+      photo: photoBase64 || null, // 🚀 Photo save ho rahi hai
     });
 
     const qrImageDataUrl = await generateQRImage(qrId);
@@ -28,11 +29,12 @@ const addStudent = async (req, res) => {
       student: { id: student._id, name: student.name, rollNumber: student.rollNumber, className: student.className, section: student.section, fatherName: student.fatherName, fatherEmail: student.fatherEmail, qrCode: student.qrCode, qrImage: qrImageDataUrl },
     });
   } catch (error) {
+    console.error('Add Student Error:', error); // 🚀 Error log karne ke liye
     res.status(500).json({ success: false, message: 'Server error while adding student', error: error.message });
   }
 };
 
-// @desc    Saare students dekho
+// Baaki functions same rahenge
 const getStudents = async (req, res) => {
   try {
     const students = await Student.find({ schoolName: req.teacher.schoolName }).sort({ className: 1, rollNumber: 1 });
@@ -42,7 +44,6 @@ const getStudents = async (req, res) => {
   }
 };
 
-// @desc    Ek student ki puri profile aur attendance history
 const getStudentProfile = async (req, res) => {
   try {
     const student = await Student.findOne({ _id: req.params.id, schoolName: req.teacher.schoolName });
@@ -59,11 +60,9 @@ const getStudentProfile = async (req, res) => {
   }
 };
 
-// @desc    Student Delete karo
 const deleteStudent = async (req, res) => {
   try {
     const studentId = req.params.id;
-    
     const student = await Student.findOne({ _id: studentId, schoolName: req.teacher.schoolName });
     if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
 
@@ -72,7 +71,6 @@ const deleteStudent = async (req, res) => {
 
     res.status(200).json({ success: true, message: 'Student and their records deleted successfully' });
   } catch (error) {
-    console.error('Delete Error:', error);
     res.status(500).json({ success: false, message: 'Server error while deleting student' });
   }
 };
